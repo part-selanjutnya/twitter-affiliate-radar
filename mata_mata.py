@@ -1,8 +1,9 @@
 import json
 import os
 import requests
-from xml.etree import ElementTree as ET
+from bs4 import BeautifulSoup
 
+# 1. Baca Konfigurasi
 try:
     with open('config_twitter.json', 'r') as f:
         config = json.load(f)
@@ -16,13 +17,6 @@ if config.get("status_bot") == "OFF":
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 REPO_NAME = os.environ.get("GITHUB_REPOSITORY")
-
-NITTER_INSTANCES = [
-    "https://nitter.poast.org",
-    "https://nitter.catsarch.com",
-    "https://nitter.lucideer.com",
-    "https://nitter.woodland.coffee"
-]
 
 def kirim_notifikasi(judul, isi):
     if not GITHUB_TOKEN or not REPO_NAME:
@@ -41,56 +35,52 @@ def kirim_notifikasi(judul, isi):
     else:
         print(f"❌ Gagal mengirim notifikasi: {res.text}")
 
-def mulai_intai_tangguh():
+def mulai_intai_direk():
     kata_kunci = [k.lower() for k in config.get("kata_kunci", [])]
     target_akun = config.get("target_akun", [])
-
-    print("🚀 Memulai radar pengintaian dengan sistem multi-server tangguh...")
+    
+    print("🚀 Memulai radar pengintaian dengan metode pencarian langsung...")
 
     for akun in target_akun:
-        berhasil = False
-        print(f"🔍 Menyelidiki kanal publik untuk @{akun}...")
+        print(f"🔍 Menyelidiki aktivitas terbaru dari @{akun}...")
+        try:
+            # Menggunakan peladen penelusuran publik alternatif untuk membaca cuitan
+            url_search = f"https://html.duckduckgo.com/html/?q=site:twitter.com/{akun}"
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+            
+            response = requests.get(url_search, headers=headers, timeout=10)
+            if response.status_code != 200:
+                print(f"⚠️ Gagal menjangkau data untuk @{akun}")
+                continue
 
-        for instance in NITTER_INSTANCES:
-            try:
-                url_feed = f"{instance}/{akun}/rss"
-                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+            soup = BeautifulSoup(response.text, 'html.parser')
+            results = soup.find_all('div', class_='result')
+            
+            if not results:
+                print(f"⚠️ Tidak ada hasil ditemukan untuk @{akun}")
+                continue
 
-                response = requests.get(url_feed, headers=headers, timeout=7)
+            for res in results[:5]:
+                snippet_elem = res.find('a', class_='result__snippet')
+                link_elem = res.find('a', class_='result__url')
+                
+                if not snippet_elem:
+                    continue
+                
+                teks_cuitan = snippet_elem.get_text().lower()
+                link_tujuan = link_elem['href'] if link_elem else f"https://twitter.com/{akun}"
 
-                if response.status_code == 200:
-                    root = ET.fromstring(response.content)
-                    items = root.findall('.//item')
+                # Pencocokan kata kunci
+                for kw in kata_kunci:
+                    if kw in teks_cuitan:
+                        judul = f"🚨 TARGET: '{kw.upper()}' di @{akun}"
+                        isi = f"**Peluang Afiliasi Terdeteksi!**\n\n**Konten:** {snippet_elem.get_text()}\n\n**Tautan Akses:** {link_tujuan}\n\n*Segera tinjau dan balas menggunakan strategi terbaik Anda!*"
+                        
+                        kirim_notifikasi(judul, isi)
+                        break
 
-                    if items:
-                        print(f"   Berhasil terhubung via server: {instance}")
-                        for item in items[:5]:
-                            title_elem = item.find('title')
-                            link_elem = item.find('link')
-
-                            if title_elem is None or link_elem is None:
-                                continue
-
-                            teks_tweet = title_elem.text.lower()
-                            link_tweet = link_elem.text
-                            for inst in NITTER_INSTANCES:
-                                link_tweet = link_tweet.replace(inst, 'https://twitter.com')
-
-                            for kw in kata_kunci:
-                                if kw in teks_tweet:
-                                    judul = f"🚨 TARGET: '{kw.upper()}' di @{akun}"
-                                    isi = f"**Peluang Afiliasi Terdeteksi!**\n\n**Konten:** {title_elem.text}\n\n**Tautan Akses:** {link_tweet}\n\n*Segera buka tautan di atas dan balas menggunakan strategi terbaik Anda!*"
-
-                                    kirim_notifikasi(judul, isi)
-                                    break 
-
-                        berhasil = True
-                        break 
-            except Exception:
-                continue 
-
-        if not berhasil:
-            print(f"⚠️ Semua server alternatif gagal merespons untuk @{akun}.")
+        except Exception as e:
+            print(f"⚠️ Terkendala saat memproses @{akun}: {e}")
 
 if __name__ == "__main__":
-    mulai_intai_tangguh()
+    mulai_intai_direk()
