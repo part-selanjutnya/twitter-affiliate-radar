@@ -34,42 +34,42 @@ def kirim_notifikasi(judul, isi):
     else:
         print(f"❌ Gagal mengirim notifikasi: {res.text}")
 
-def mulai_intai_proxy_publik():
+def mulai_intai_api_terbuka():
     kata_kunci = [k.lower() for k in config.get("kata_kunci", [])]
     target_akun = config.get("target_akun", [])
     
-    print("🚀 Menjalankan radar melalui cache arsip publik terbuka...")
+    print("🚀 Menjalankan radar dengan proksi API terbuka...")
 
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        'Accept': 'application/json'
     }
 
     for akun in target_akun:
         print(f"🔍 Menyelidiki aktivitas @{akun}...")
         try:
-            # Menggunakan jalur cache web universal terbuka yang melewati pembatas IP datacenter
-            url_cache = f"https://r.jina.ai/https://nitter.cz/{akun}"
+            # Menggunakan API publik alternatif berbasis pembaca RSS universal
+            url_api = f"https://api.allorigins.win/get?url=https://vxtwitter.com/{akun}"
             
-            response = requests.get(url_cache, headers=headers, timeout=15)
+            response = requests.get(url_api, headers=headers, timeout=15)
             
             if response.status_code != 200:
                 print(f"⚠️ Gagal menjangkau kanal @{akun} (Status: {response.status_code})")
                 continue
 
-            lines = response.text.split('\n')
-            for line in lines:
-                line_lower = line.lower()
-                for kw in kata_kunci:
-                    if kw in line_lower:
-                        judul = f"🚨 TARGET: '{kw.upper()}' di @{akun}"
-                        isi = f"**Peluang Afiliasi Terdeteksi!**\n\n**Konten Ditemukan:** {line.strip()}\n\n**Akun Target:** @{akun}\n\n*Segera tinjau dan balas menggunakan strategi terbaik Anda!*"
-                        
-                        kirim_notifikasi(judul, isi)
-                        break
+            data_json = response.json()
+            teks_konten = data_json.get('contents', '').lower()
+
+            for kw in kata_kunci:
+                if kw in teks_konten:
+                    judul = f"🚨 TARGET: '{kw.upper()}' di @{akun}"
+                    isi = f"**Peluang Afiliasi Terdeteksi!**\n\n**Akun Target:** @{akun}\n\n*Segera tinjau linimasa akun tersebut dan balas menggunakan strategi terbaik Anda!*"
+                    
+                    kirim_notifikasi(judul, isi)
+                    break
 
         except Exception as e:
             print(f"⚠️ Terkendala saat memproses @{akun}: {e}")
 
 if __name__ == "__main__":
-    mulai_intai_proxy_publik()
+    mulai_intai_api_terbuka()
