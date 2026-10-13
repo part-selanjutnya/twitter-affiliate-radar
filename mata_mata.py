@@ -34,47 +34,50 @@ def kirim_notifikasi(judul, isi):
     else:
         print(f"❌ Gagal mengirim notifikasi: {res.text}")
 
-def mulai_intai_api_publik():
+def mulai_intai_stabil():
     kata_kunci = [k.lower() for k in config.get("kata_kunci", [])]
     target_akun = config.get("target_akun", [])
     
-    print("🚀 Menjalankan radar dengan endpoint data publik terstruktur...")
+    print("🚀 Menjalankan radar dengan jalur akses stabil...")
 
+    # Menggunakan identitas peramban seluler standar
     headers = {
-        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.55 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
-        'Accept': 'application/json'
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+        'Accept': 'application/json,text/html'
     }
 
     for akun in target_akun:
-        print(f"🔍 Menyelidiki aktivitas @{akun} melalui arsip publik...")
+        print(f"🔍 Menyelidiki aktivitas @{akun}...")
         try:
-            # Menggunakan jalur API arsip publik mandiri yang bersih dari proteksi captcha browser
-            url_api = f"https://r.jina.ai/https://twitter.com/{akun}"
+            # Menggunakan peladen proksi publik nitter alternatif yang ramah server
+            url_target = f"https://nitter.poast.org/{akun}/rss"
             
-            response = requests.get(url_api, headers=headers, timeout=15)
+            response = requests.get(url_target, headers=headers, timeout=10)
             
             if response.status_code != 200:
-                print(f"⚠️ Gagal menjangkau arsip untuk @{akun} (Status: {response.status_code})")
-                continue
+                print(f"⚠️ Jalur utama tertutup untuk @{akun} (Status: {response.status_code}). Mencoba jalur data cadangan...")
+                # Jalur cadangan menggunakan arsip teks ringan
+                url_backup = f"https://r.jina.ai/https://nitter.poast.org/{akun}"
+                response = requests.get(url_backup, headers=headers, timeout=10)
 
-            teks_halaman = response.text.lower()
-            lines = response.text.split('\n')
+            if response.status_code == 200:
+                teks_data = response.text.lower()
+                lines = response.text.split('\n')
 
-            for line in lines:
-                line_lower = line.lower()
-                # Cek apakah baris teks mengandung kata kunci yang kita cari
-                for kw in kata_kunci:
-                    if kw in line_lower:
-                        judul = f"🚨 TARGET: '{kw.upper()}' di @{akun}"
-                        link_tujuan = f"https://twitter.com/{akun}"
-                        
-                        isi = f"**Peluang Afiliasi Terdeteksi!**\n\n**Konten Ditemukan:** {line.strip()}\n\n**Akun Target:** @{akun}\n\n*Segera tinjau dan balas menggunakan strategi terbaik Anda!*"
-                        
-                        kirim_notifikasi(judul, isi)
-                        break
+                for line in lines:
+                    line_lower = line.lower()
+                    for kw in kata_kunci:
+                        if kw in line_lower:
+                            judul = f"🚨 TARGET: '{kw.upper()}' di @{akun}"
+                            isi = f"**Peluang Afiliasi Terdeteksi!**\n\n**Konten Ditemukan:** {line.strip()}\n\n**Akun Target:** @{akun}\n\n*Segera tinjau dan balas menggunakan strategi terbaik Anda!*"
+                            
+                            kirim_notifikasi(judul, isi)
+                            break
+            else:
+                print(f"⚠️ Gagal total menjangkau data untuk @{akun}")
 
         except Exception as e:
             print(f"⚠️ Terkendala saat memproses @{akun}: {e}")
 
 if __name__ == "__main__":
-    mulai_intai_api_publik()
+    mulai_intai_stabil()
