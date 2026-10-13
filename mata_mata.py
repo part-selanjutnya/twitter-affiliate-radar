@@ -1,6 +1,7 @@
 import json
 import os
 import requests
+from xml.etree import ElementTree as ET
 
 # 1. Baca Konfigurasi
 try:
@@ -16,6 +17,15 @@ if config.get("status_bot") == "OFF":
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 REPO_NAME = os.environ.get("GITHUB_REPOSITORY")
+
+# Daftar peladen komunitas RSSHub publik yang aktif
+RSSHUB_INSTANCES = [
+    "https://rsshub.rssforever.com",
+    "https://rsshub.moeyy.cn",
+    "https://rss.shab.fun",
+    "https://rss.mxd.cx",
+    "https://rsshub.ktachibana.party"
+]
 
 def kirim_notifikasi(judul, isi):
     if not GITHUB_TOKEN or not REPO_NAME:
@@ -34,44 +44,55 @@ def kirim_notifikasi(judul, isi):
     else:
         print(f"❌ Gagal mengirim notifikasi: {res.text}")
 
-def mulai_intai_sindikasi():
+def mulai_intai_rsshub():
     kata_kunci = [k.lower() for k in config.get("kata_kunci", [])]
     target_akun = config.get("target_akun", [])
     
-    print("🚀 Menjalankan radar menembus Cloudflare via API Sindikasi Resmi...")
+    print("🚀 Menjalankan radar melalui arsitektur multi-jembatan RSSHub...")
 
-    # Headers yang meniru identitas pemanggilan widget web standar
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5'
-    }
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
 
     for akun in target_akun:
-        print(f"🔍 Memindai widget resmi @{akun}...")
-        try:
-            # Menggunakan endpoint resmi Twitter untuk embed timeline (kebal blokir IP)
-            url_sindikasi = f"https://syndication.twitter.com/srv/timeline-profile/screen-name/{akun}"
-            
-            response = requests.get(url_sindikasi, headers=headers, timeout=15)
-            
-            if response.status_code != 200:
-                print(f"⚠️ Gagal menjangkau sindikasi @{akun} (Status: {response.status_code})")
-                continue
-
-            # API Sindikasi merender struktur JSON di dalam HTML, kita ekstrak teks mentahnya
-            teks_mentah = response.text.lower()
-
-            for kw in kata_kunci:
-                if kw in teks_mentah:
-                    judul = f"🚨 TARGET: '{kw.upper()}' di @{akun}"
-                    isi = f"**Peluang Afiliasi Terdeteksi!**\n\n**Kata Kunci:** {kw}\n**Akun Target:** @{akun}\n\n*Sistem mendeteksi aktivitas yang relevan. Segera buka X/Twitter untuk membalas menggunakan strategi terbaik Anda!*\n\n🔗 Tautan: https://twitter.com/{akun}"
+        print(f"🔍 Mencari jalur yang bersih untuk @{akun}...")
+        berhasil = False
+        
+        # Coba setiap jembatan satu per satu (Failover mechanism)
+        for instance in RSSHUB_INSTANCES:
+            try:
+                url_rss = f"{instance}/twitter/user/{akun}"
+                response = requests.get(url_rss, headers=headers, timeout=12)
+                
+                if response.status_code == 200:
+                    print(f"   Terhubung melalui jembatan: {instance}")
+                    root = ET.fromstring(response.content)
+                    items = root.findall('.//item')
                     
-                    kirim_notifikasi(judul, isi)
-                    break
-
-        except Exception as e:
-            print(f"⚠️ Terkendala saat memproses @{akun}: {e}")
+                    for item in items[:5]: # Batasi 5 cuitan terbaru
+                        title_elem = item.find('title')
+                        link_elem = item.find('link')
+                        
+                        if title_elem is None or link_elem is None:
+                            continue
+                        
+                        teks_cuitan = title_elem.text.lower()
+                        link_tujuan = link_elem.text
+                        
+                        for kw in kata_kunci:
+                            if kw in teks_cuitan:
+                                judul = f"🚨 TARGET: '{kw.upper()}' di @{akun}"
+                                isi = f"**Peluang Afiliasi Terdeteksi!**\n\n**Konten:** {title_elem.text}\n\n**Tautan Akses:** {link_tujuan}\n\n*Segera balas menggunakan strategi terbaik Anda!*"
+                                
+                                kirim_notifikasi(judul, isi)
+                                break 
+                    
+                    berhasil = True
+                    break # Hentikan loop instans jika sudah berhasil mendapat data
+                
+            except Exception:
+                continue # Lanjut ke jembatan berikutnya jika gagal/timeout
+        
+        if not berhasil:
+            print(f"⚠️ Semua jembatan gagal menembus keamanan untuk @{akun} saat ini.")
 
 if __name__ == "__main__":
-    mulai_intai_sindikasi()
+    mulai_intai_rsshub()
