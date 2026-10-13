@@ -34,24 +34,24 @@ def kirim_notifikasi(judul, isi):
     else:
         print(f"❌ Gagal mengirim notifikasi: {res.text}")
 
-def mulai_intai_universal():
+def mulai_intai_proxy_publik():
     kata_kunci = [k.lower() for k in config.get("kata_kunci", [])]
     target_akun = config.get("target_akun", [])
     
-    print("🚀 Menjalankan radar dengan mesin pencari data universal...")
+    print("🚀 Menjalankan radar melalui cache arsip publik terbuka...")
 
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
     }
 
     for akun in target_akun:
-        print(f"🔍 Memindai lini masa publik untuk @{akun}...")
+        print(f"🔍 Menyelidiki aktivitas @{akun}...")
         try:
-            # Menggunakan jalur agregator arsip terbuka universal yang aktif
-            url_arsip = f"https://r.jina.ai/https://x.com/{akun}"
+            # Menggunakan jalur cache web universal terbuka yang melewati pembatas IP datacenter
+            url_cache = f"https://r.jina.ai/https://nitter.cz/{akun}"
             
-            response = requests.get(url_arsip, headers=headers, timeout=15)
+            response = requests.get(url_cache, headers=headers, timeout=15)
             
             if response.status_code != 200:
                 print(f"⚠️ Gagal menjangkau kanal @{akun} (Status: {response.status_code})")
@@ -72,4 +72,4 @@ def mulai_intai_universal():
             print(f"⚠️ Terkendala saat memproses @{akun}: {e}")
 
 if __name__ == "__main__":
-    mulai_intai_universal()
+    mulai_intai_proxy_publik()
