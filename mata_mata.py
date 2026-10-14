@@ -1,9 +1,9 @@
 import json
 import os
+import datetime
 import requests
-from xml.etree import ElementTree as ET
 
-# 1. Baca Konfigurasi
+# 1. Baca Konfigurasi Kata Kunci
 try:
     with open('config_twitter.json', 'r') as f:
         config = json.load(f)
@@ -15,84 +15,69 @@ if config.get("status_bot") == "OFF":
     print("Status bot sedang OFF. Pengintaian dihentikan.")
     exit()
 
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
-REPO_NAME = os.environ.get("GITHUB_REPOSITORY")
+# 2. Muat Database JSON yang ada
+DB_FILE = 'data_target.json'
+try:
+    with open(DB_FILE, 'r') as f:
+        database_target = json.load(f)
+except FileNotFoundError:
+    database_target = []
 
-# Daftar peladen komunitas RSSHub publik yang aktif
-RSSHUB_INSTANCES = [
-    "https://rsshub.rssforever.com",
-    "https://rsshub.moeyy.cn",
-    "https://rss.shab.fun",
-    "https://rss.mxd.cx",
-    "https://rsshub.ktachibana.party"
-]
-
-def kirim_notifikasi(judul, isi):
-    if not GITHUB_TOKEN or not REPO_NAME:
-        print(f"Simulasi Notifikasi: {judul}")
-        return
-
-    url = f"https://api.github.com/repos/{REPO_NAME}/issues"
-    headers = {
-        "Authorization": f"token {GITHUB_TOKEN}",
-        "Accept": "application/vnd.github.v3+json"
+def simpan_ke_database(keyword_ditemukan, teks_konten, tautan_tujuan):
+    waktu_sekarang = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    
+    # Buat data baru
+    data_baru = {
+        "waktu": waktu_sekarang,
+        "keyword": keyword_ditemukan,
+        "konten": teks_konten,
+        "link": tautan_tujuan
     }
-    data = {"title": judul, "body": isi}
-    res = requests.post(url, headers=headers, json=data)
-    if res.status_code == 201:
-        print(f"✅ Notifikasi Issue berhasil dikirim: {judul}")
-    else:
-        print(f"❌ Gagal mengirim notifikasi: {res.text}")
+    
+    # Masukkan ke urutan paling atas (terbaru)
+    database_target.insert(0, data_baru)
+    
+    # Batasi database maksimal 50 data terakhir agar tidak terlalu besar
+    if len(database_target) > 50:
+        database_target.pop()
+        
+    # Simpan kembali ke file JSON
+    with open(DB_FILE, 'w') as f:
+        json.dump(database_target, f, indent=4)
+    print(f"✅ Data baru berhasil dimasukkan ke {DB_FILE}!")
 
-def mulai_intai_rsshub():
+def jalankan_radar_otomatis():
     kata_kunci = [k.lower() for k in config.get("kata_kunci", [])]
     target_akun = config.get("target_akun", [])
     
-    print("🚀 Menjalankan radar melalui arsitektur multi-jembatan RSSHub...")
+    print("🚀 Menjalankan radar pengintai untuk Command Center...")
 
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+    }
 
+    # Menggunakan metode pemindaian arsip/sumber publik yang aman
     for akun in target_akun:
-        print(f"🔍 Mencari jalur yang bersih untuk @{akun}...")
-        berhasil = False
-        
-        # Coba setiap jembatan satu per satu (Failover mechanism)
-        for instance in RSSHUB_INSTANCES:
-            try:
-                url_rss = f"{instance}/twitter/user/{akun}"
-                response = requests.get(url_rss, headers=headers, timeout=12)
-                
-                if response.status_code == 200:
-                    print(f"   Terhubung melalui jembatan: {instance}")
-                    root = ET.fromstring(response.content)
-                    items = root.findall('.//item')
-                    
-                    for item in items[:5]: # Batasi 5 cuitan terbaru
-                        title_elem = item.find('title')
-                        link_elem = item.find('link')
-                        
-                        if title_elem is None or link_elem is None:
-                            continue
-                        
-                        teks_cuitan = title_elem.text.lower()
-                        link_tujuan = link_elem.text
-                        
-                        for kw in kata_kunci:
-                            if kw in teks_cuitan:
-                                judul = f"🚨 TARGET: '{kw.upper()}' di @{akun}"
-                                isi = f"**Peluang Afiliasi Terdeteksi!**\n\n**Konten:** {title_elem.text}\n\n**Tautan Akses:** {link_tujuan}\n\n*Segera balas menggunakan strategi terbaik Anda!*"
-                                
-                                kirim_notifikasi(judul, isi)
-                                break 
-                    
-                    berhasil = True
-                    break # Hentikan loop instans jika sudah berhasil mendapat data
-                
-            except Exception:
-                continue # Lanjut ke jembatan berikutnya jika gagal/timeout
-        
-        if not berhasil:
-            print(f"⚠️ Semua jembatan gagal menembus keamanan untuk @{akun} saat ini.")
+        print(f"🔍 Memindai aktivitas @{akun}...")
+        try:
+            # Menggunakan titik akses cache terbuka
+            url_arsip = f"https://r.jina.ai/https://nitter.cz/{akun}"
+            response = requests.get(url_arsip, headers=headers, timeout=15)
+            
+            if response.status_code == 200:
+                lines = response.text.split('\n')
+                for line in lines:
+                    line_lower = line.lower()
+                    for kw in kata_kunci:
+                        if kw in line_lower:
+                            # Cek apakah konten ini sudah ada di database agar tidak duplikat
+                            sudah_ada = any(item['konten'] == line.strip() for item in database_target)
+                            if not sudah_ada:
+                                simpan_ke_database(kw, line.strip(), f"https://twitter.com/{akun}")
+                            break
+        except Exception as e:
+            print(f"⚠️ Kendala pada @{akun}: {e}")
 
 if __name__ == "__main__":
-    mulai_intai_rsshub()
+    jalankan_radar_otomatis()
