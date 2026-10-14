@@ -2,23 +2,27 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Twitter Affiliate Command Center</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
 </head>
 <body class="bg-light p-4">
     <div class="container">
-        <h2 class="mb-4">🎯 Twitter Affiliate Command Center</h2>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>🎯 Twitter Affiliate Command Center</h2>
+            <button onclick="location.reload()" class="btn btn-outline-secondary btn-sm">🔄 Muat Ulang Data</button>
+        </div>
         
         <div class="card shadow-sm">
             <div class="card-body">
-                <h5>🚨 Live Feed Peluang Afiliasi Terdeteksi</h5>
+                <h5 class="card-title mb-3">🚨 Live Feed Peluang Afiliasi Terdeteksi</h5>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
-                        <thead>
+                        <thead class="table-dark">
                             <tr>
                                 <th>Waktu</th>
                                 <th>Kata Kunci</th>
-                                <th>Konten / Pertanyaan Pembeli</th>
+                                <th>Konten / Pertanyaan Target</th>
                                 <th>Aksi Cepat</th>
                             </tr>
                         </thead>
@@ -33,9 +37,9 @@
         </div>
     </div>
 
-    <!-- Skrip untuk membaca database JSON secara otomatis di GitHub Pages -->
     <script>
-        fetch('data_target.json')
+        // Membaca file database JSON secara dinamis
+        fetch('data_target.json?t=' + new Date().getTime())
             .then(response => response.json())
             .then(data => {
                 const tbody = document.getElementById('tabel-data');
@@ -47,19 +51,20 @@
                 }
 
                 data.forEach(item => {
+                    let encodedText = encodeURIComponent("Bikin kamar makin rapi & estetik pakai ini! ✨ " + item.link);
                     let tr = `<tr>
-                        <td>${item.waktu}</td>
+                        <td><small class="text-muted">${item.waktu}</small></td>
                         <td><span class="badge bg-success">${item.keyword}</span></td>
                         <td>${item.konten}</td>
                         <td>
-                            <a href="${item.link}" target="_blank" class="btn btn-sm btn-primary">⚡ Balas & Tawarkan</a>
+                            <a href="${item.link}" target="_blank" class="btn btn-sm btn-primary">⚡ Kunjungi & Balas</a>
                         </td>
                     </tr>`;
                     tbody.innerHTML += tr;
                 });
             })
             .catch(error => {
-                document.getElementById('tabel-data').innerHTML = '<tr><td colspan="4" class="text-center text-danger">Gagal memuat data atau file database belum ada.</td></tr>';
+                document.getElementById('tabel-data').innerHTML = '<tr><td colspan="4" class="text-center text-danger">Gagal memuat data database. Pastikan file JSON sudah tersedia.</td></tr>';
             });
     </script>
 </body>
