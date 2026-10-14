@@ -9,8 +9,7 @@ jobs:
   berburu_target:
     runs-on: ubuntu-latest
     permissions:
-      issues: write
-      contents: read
+      contents: write # Diperlukan agar bot bisa memperbarui file JSON di repo
     
     steps:
       - name: Tarik Kode dari Repositori
@@ -25,6 +24,12 @@ jobs:
         run: pip install requests
 
       - name: Jalankan Radar Mata-Mata
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python mata_mata.py
+
+      - name: Otomatis Simpan (Commit & Push) Hasil Intai ke Repo
+        run: |
+          git config --global user.name "Bot Affiliate Radar"
+          git config --global user.email "bot@users.noreply.github.com"
+          git add data_target.json
+          git commit -m "🤖 Update otomatis data target afiliasi baru" || echo "Tidak ada perubahan data"
+          git push
